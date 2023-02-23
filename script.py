@@ -409,13 +409,13 @@ class fake_camera_setup:
 def cook_up_example(
     A_position,
     AB_direction,
-    other_thing_that_will_turned_into_BC_direction,
+    other_thing_that_will_be_turned_into_BC_direction,
     AB_length,
     AC_length
 ):
     unit_vector_from_world_A_to_world_B = AB_direction.normalized()
     unit_vector_from_world_B_to_world_C = \
-        other_thing_that_will_turned_into_BC_direction.cross(unit_vector_from_world_A_to_world_B).normalized()
+        other_thing_that_will_be_turned_into_BC_direction.cross(unit_vector_from_world_A_to_world_B).normalized()
     unit_vector_from_world_B_to_world_C = \
         (-1) * unit_vector_from_world_B_to_world_C.cross(unit_vector_from_world_A_to_world_B).normalized()
 
@@ -432,19 +432,22 @@ def cook_up_example(
     return (screen_A, screen_B, screen_C, screen_D), (world_A, world_B, world_C, world_D)
 
 
-QR_code_size = 0.02
+def check_is_square(*args):
+    if isinstance(args[0], tuple) or isinstance(args[0], list):
+        assert len(args) == 1
+        ABCD = args[0]
 
+    else:
+        ABCD = args
 
-screen_ABCD, actual_ABCD = cook_up_example(
-    v3(0.1, 0.1, 1),
-    v3(1, 0, 0),
-    v3(0, -1, 0),
-    QR_code_size,
-    QR_code_size,
-)
+    assert len(ABCD) == 4
+    assert all(isinstance(x, v3) for x in ABCD)
 
+    A = ABCD[0]
+    B = ABCD[1]
+    C = ABCD[2]
+    D = ABCD[3]
 
-def check_is_square(A, B, C, D):
     s1 = B - A
     s2 = C - B
     s3 = D - C
@@ -554,14 +557,14 @@ def three_corners_main_solver(screen_A, screen_B, screen_D, real_world_sidelengt
         x = lower
         x_ratio = norm_squared_ratio_at_b_coefficient(x)
 
-        while num_reversals <= MAX_REVERSALS:
+        while num_reversals < MAX_REVERSALS:
             next_x = x + sign * step
             next_x_ratio = norm_squared_ratio_at_b_coefficient(next_x)
 
             if (1 - x_ratio) * (1 - next_x_ratio) <= 0:
                 sign *= -1
                 num_reversals += 1
-                step /= 10
+                step /= STEPS_PER_REVERSAL
 
             x = next_x
             x_ratio = next_x_ratio
@@ -612,6 +615,28 @@ def check_solution(screen_ABCD, solution_tuple):
     print("(D projection) compare:", screen_ABCD[3], "with", fake_camera_setup.world_to_screen(solution_tuple[3]))
 
 
+def announce(string):
+    print("########################")
+    print(string)
+    print("########################")
+    print("")
+
+
+def pretty_print_tuple(solution_tuple, header=None):
+    print("")
+    if header is not None:
+        announce(header + ':')
+    print("   A:", solution_tuple[0])
+    print("   B:", solution_tuple[1])
+    print("   C:", solution_tuple[2])
+    print("   D:", solution_tuple[3])
+
+
+def pretty_print_line(string):
+    print("")
+    print(string)
+
+
 def solution_angle_to_vertical(solution_tuple):
     AB = solution_tuple[1] - solution_tuple[0]
     AC = solution_tuple[3] - solution_tuple[0]
@@ -619,31 +644,24 @@ def solution_angle_to_vertical(solution_tuple):
     return normal_towards_camera_if_A_is_top_left_corner_of_QRcode.degrees_angle_with(v3(0, 1, 0))
 
 
-def pretty_print_tuple(solution_tuple):
-    print("   A:", solution_tuple[0])
-    print("   B:", solution_tuple[1])
-    print("   C:", solution_tuple[2])
-    print("   D:", solution_tuple[3])
+QR_code_size = 0.02
 
+screen_ABCD, actual_ABCD = cook_up_example(
+    v3(0.1, 0.1, 1),
+    v3(1, 0, 0),
+    v3(0, -1, 0),
+    QR_code_size,
+    QR_code_size,
+)
+
+pretty_print_tuple(screen_ABCD, "screen_ABCD")
+pretty_print_tuple(actual_ABCD, "actual_ABCD")
 
 solns = three_corners_main_solver(screen_ABCD[0], screen_ABCD[1], screen_ABCD[3], QR_code_size)
 
 for i, soln in enumerate(solns):
-    print("")
-    print("########################")
-    print("PRINTOUTS FOR SOLUTION", i + 1)
-    print("########################")
+    pretty_print_tuple(soln, f"PRINTOUTS FOR SOLUTION {i + 1}")
+    pretty_print_line(f"angle_to_vertical: {solution_angle_to_vertical(soln)}")
     check_solution(screen_ABCD, soln)
-    print("")
-    pretty_print_tuple(soln)
-    print("")
-    print("angle_to_vertical:", solution_angle_to_vertical(soln))
-
 
 print("")
-print("########################")
-print("TRUE COORDINATES OF ABCD")
-print("########################")
-
-print("")
-pretty_print_tuple(actual_ABCD)
